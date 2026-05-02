@@ -69,10 +69,22 @@ select:focus{outline:none;border-color:var(--gold);}
 .btn-cancel-meal.cancelled{background:rgba(139,74,58,.12);border-color:#c06050;color:#c06050;font-weight:700;}
 .btn-cancel-meal.cancelled:hover{background:transparent;border-color:var(--border);color:var(--text-muted);}
 
+/* MEMO FIELD */
+.meal-memo-wrap{margin-top:10px;display:flex;gap:6px;align-items:flex-start;}
+.meal-memo{flex:1;padding:8px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'Noto Sans JP',sans-serif;font-size:12px;resize:none;outline:none;line-height:1.5;min-height:38px;transition:border-color .2s;}
+.meal-memo:focus{border-color:var(--gold);}
+.meal-memo::placeholder{color:var(--text-muted);}
+.btn-voice{flex-shrink:0;width:38px;height:38px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-muted);font-size:16px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;}
+.btn-voice:hover{border-color:var(--gold);color:var(--gold);}
+.btn-voice.recording{background:rgba(224,80,80,.15);border-color:#e05050;color:#e05050;animation:pulse .8s ease infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+
 .existing-notice{background:rgba(201,169,110,.1);border:1px solid rgba(201,169,110,.3);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--gold);margin-bottom:14px;display:none;}
 
 .btn-submit{width:100%;padding:15px;background:var(--gold);color:var(--bg);border:none;border-radius:10px;font-family:'Noto Sans JP',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;margin-top:8px;}
 .btn-submit:hover{background:var(--gold-light);transform:translateY(-1px);}
+.btn-submit-both{width:100%;padding:13px;background:linear-gradient(135deg,#4070c0 0%,#4070c0 49%,#c04040 51%,#c04040 100%);color:#fff;border:none;border-radius:10px;font-family:'Noto Sans JP',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;margin-top:8px;letter-spacing:.03em;}
+.btn-submit-both:hover{opacity:.9;transform:translateY(-1px);}
 
 .toast{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:12px 24px;border-radius:40px;font-size:13px;font-weight:500;z-index:999;animation:fadeUp .3s ease;}
 @keyframes fadeUp{from{opacity:0;transform:translateX(-50%) translateY(10px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
@@ -431,6 +443,10 @@ select:focus{outline:none;border-color:var(--gold);}
     </div>
     <label class="skip-label" style="display:none"><input type="checkbox" id="skip-morning"></label>
     <button class="btn-cancel-meal" id="cancel-btn-morning" onclick="toggleCancel('morning')">✕ 朝食をキャンセル</button>
+    <div class="meal-memo-wrap">
+      <textarea class="meal-memo" id="memo-morning" rows="1" placeholder="備考・アレルギー・要望など（任意）" oninput="autoResize(this)"></textarea>
+      <button class="btn-voice" id="voice-btn-morning" onclick="toggleVoice('morning')" title="音声入力">🎤</button>
+    </div>
   </div>
 
   <!-- 昼食 -->
@@ -459,6 +475,10 @@ select:focus{outline:none;border-color:var(--gold);}
     </div>
     <label class="skip-label" style="display:none"><input type="checkbox" id="skip-lunch"></label>
     <button class="btn-cancel-meal" id="cancel-btn-lunch" onclick="toggleCancel('lunch')">✕ 昼食をキャンセル</button>
+    <div class="meal-memo-wrap">
+      <textarea class="meal-memo" id="memo-lunch" rows="1" placeholder="備考・アレルギー・要望など（任意）" oninput="autoResize(this)"></textarea>
+      <button class="btn-voice" id="voice-btn-lunch" onclick="toggleVoice('lunch')" title="音声入力">🎤</button>
+    </div>
   </div>
 
   <!-- 夕食 -->
@@ -487,9 +507,14 @@ select:focus{outline:none;border-color:var(--gold);}
     </div>
     <label class="skip-label" style="display:none"><input type="checkbox" id="skip-dinner"></label>
     <button class="btn-cancel-meal" id="cancel-btn-dinner" onclick="toggleCancel('dinner')">✕ 夕食をキャンセル</button>
+    <div class="meal-memo-wrap">
+      <textarea class="meal-memo" id="memo-dinner" rows="1" placeholder="備考・アレルギー・要望など（任意）" oninput="autoResize(this)"></textarea>
+      <button class="btn-voice" id="voice-btn-dinner" onclick="toggleVoice('dinner')" title="音声入力">🎤</button>
+    </div>
   </div>
 
   <button class="btn-submit" onclick="submitOrder()">✓ オーダーを確定する</button>
+  <button class="btn-submit-both" id="btn-submit-both" onclick="submitBoth()" style="display:none">🔵🔴 赤・青 2人同時に確定する</button>
 </div>
 
 <!-- ===== GUEST MY PAGE ===== -->
@@ -989,6 +1014,9 @@ function syncPersonSwitcher(person) {
       document.getElementById('psw-mypage-red').classList.toggle('active',  person==='red');
     }
   }
+  // 2人同時送信ボタン：個人が選択されている場合のみ表示
+  const bothBtn = document.getElementById('btn-submit-both');
+  if(bothBtn) bothBtn.style.display = person ? 'block' : 'none';
 }
 
 function switchPersonMypage(person) {
@@ -1045,9 +1073,8 @@ function applyLoginUI(room, person) {
 
   onRoomOrDateChange();
   renderMyCalendar();
-}
-
-function doLogout() {
+  if(typeof window.refreshDateSelector==='function') window.refreshDateSelector();
+} {
   if(!confirm('ログアウトしますか？')) return;
   loggedInRoom = null;
   loggedInPerson = null;
@@ -1101,6 +1128,7 @@ function saveMenus() {
       MENUS[meal][k] = v || DEFAULT_MENUS[meal][k];
     });
   });
+  if(typeof window.fbSaveMenus==='function') window.fbSaveMenus().catch(e=>console.error('FB menus:',e));
   localStorage.setItem('restaurantMenus', JSON.stringify(MENUS));
   localStorage.setItem('restaurantTimes',  JSON.stringify(TIMES));
   applyMenusToOrderForm();
@@ -1208,6 +1236,7 @@ function saveAlacarte() {
     if(priceEl) item.price = parseInt(priceEl.value)   || item.price;
     if(catEl)   item.cat   = catEl.value               || item.cat;
   });
+  if(typeof window.fbSaveAlacarte==='function') window.fbSaveAlacarte().catch(e=>console.error('FB alacarte:',e));
   localStorage.setItem('restaurantAlacarte', JSON.stringify(alacarteItems));
   showToast('✓ アラカルトを保存しました');
 }
@@ -1230,7 +1259,106 @@ function switchAdminTab(tab, btn) {
   if(tab === 'alacarteeditor') renderAlacarteEditor();
 }
 
-// ===== CANCEL BUTTON =====
+// ===== 2人同時送信 =====
+function submitBoth() {
+  if(!loggedInRoom){ alert('ログインしてください'); return; }
+
+  // フォームのバリデーション（通常送信と同じチェック）
+  const date = document.getElementById('date-sel').value;
+  if(!date){ alert('日付を選択してください'); return; }
+
+  const skip={}, sel={}, rs={};
+  const unselected = MEALS.filter(m => {
+    return !document.getElementById(`skip-${m}`).checked &&
+           !document.querySelector(`input[name="${m}"]:checked`)?.value;
+  });
+  if(unselected.length > 0){
+    const names = unselected.map(m=>`「${MEAL_LABELS[m]}」`).join('・');
+    const ok = confirm(`${names}が選択されていません。\nこれらを「なし」として2人分送信してよろしいですか？`);
+    if(!ok) return;
+    unselected.forEach(m=>{
+      const cb=document.getElementById(`skip-${m}`);
+      cb.checked=true;
+      document.querySelectorAll(`input[name="${m}"]`).forEach(r=>{r.disabled=true;r.checked=false;r.closest('.menu-option').querySelector('label').style.opacity='0.3';});
+      document.getElementById(`rs-${m}`).checked=false;
+      syncCancelBtn(m);
+    });
+  }
+  for(const m of MEALS){
+    skip[m]=document.getElementById(`skip-${m}`).checked;
+    sel[m] =skip[m]?null:(document.querySelector(`input[name="${m}"]:checked`)?.value||null);
+    rs[m]  =!skip[m]&&document.getElementById(`rs-${m}`).checked;
+    if(!skip[m]&&sel[m]==='d'&&(m==='lunch'||m==='dinner')&&!acPanelState[m].itemIds.length){
+      alert(`${MEAL_LABELS[m]}のアラカルトメニューを選択してください`); return;
+    }
+  }
+
+  // 確認モーダルを「2人同時」モードで表示
+  _pendingSel=sel; _pendingRs=rs; _pendingDate=date;
+  _pendingBoth=true;
+  _pendingEx=orders.find(o=>o.room==loggedInRoom&&o.date===date&&(o.person||null)===(loggedInPerson||null));
+
+  // モーダルのタイトルを変更
+  document.querySelector('.modal-title').textContent='📋 2人同時オーダー確認';
+  const d=new Date(date);
+  const dateLabel=`${d.getMonth()+1}月${d.getDate()}日（${DOW[d.getDay()]}）`;
+  document.getElementById('modal-date').innerHTML=
+    `${loggedInRoom}号室 <span style="color:#6090d0;font-weight:700">🔵 青</span> ＋ <span style="color:#e06060;font-weight:700">🔴 赤</span> ／ ${dateLabel}`;
+
+  // メニュー内容（共通）を表示
+  const mclr={morning:'var(--morning)',lunch:'var(--lunch)',dinner:'var(--dinner)'};
+  const now=new Date();
+  const deadline=new Date(date); deadline.setDate(deadline.getDate()-2); deadline.setHours(14,0,0,0);
+  const svcDate=new Date(date);
+  const isPaidCancelWindow=(now>=deadline&&now<svcDate);
+  document.getElementById('modal-rows').innerHTML=MEALS.map(m=>{
+    const name=menuDisplayName(m,sel[m]);
+    const rsTag=rs[m]?`<span class="modal-rs">🛎 +¥300</span>`:'';
+    if(!name){
+      const showPaid=isPaidCancelWindow;
+      return `<div class="modal-row"><div class="modal-dot" style="background:${mclr[m]}"></div><span class="modal-meal-label">${MEAL_LABELS[m]}</span>${showPaid?'<span class="modal-paid-cancel">⚠ 有料キャンセル</span>':'<span class="modal-none">なし</span>'}</div>`;
+    }
+    return `<div class="modal-row" style="flex-wrap:wrap"><div class="modal-dot" style="background:${mclr[m]}"></div><span class="modal-meal-label">${MEAL_LABELS[m]}</span><span class="modal-menu">${name}</span>${rsTag}${memoTag?`<div style="width:100%;padding-left:62px;font-size:10px;color:var(--text-muted);margin-top:2px">📝 ${memo}</div>`:''}</div>`;
+  }).join('');
+  document.querySelector('.modal-btn-ok').textContent='🔵🔴 2人分確定する';
+  document.getElementById('order-confirm-modal').classList.add('open');
+}
+
+let _pendingBoth = false;
+// ===== MEMO & VOICE INPUT =====
+let activeRecognition = null;
+let activeVoiceMeal   = null;
+
+function autoResize(el){
+  el.style.height='auto';
+  el.style.height=el.scrollHeight+'px';
+}
+
+function toggleVoice(meal){
+  if(activeVoiceMeal===meal && activeRecognition){ activeRecognition.stop(); return; }
+  if(activeRecognition){ activeRecognition.stop(); }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ alert('このブラウザは音声入力に対応していません。\nChrome（最新版）をお使いください。'); return; }
+  const rec=new SR();
+  rec.lang='ja-JP'; rec.continuous=false; rec.interimResults=true;
+  const btn=document.getElementById(`voice-btn-${meal}`);
+  const memo=document.getElementById(`memo-${meal}`);
+  const base=memo.value;
+  rec.onstart=()=>{ activeRecognition=rec; activeVoiceMeal=meal; btn.classList.add('recording'); btn.textContent='⏹'; btn.title='録音停止'; };
+  rec.onresult=(e)=>{
+    let interim='',final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) final+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
+    }
+    memo.value=base+(base&&(final||interim)?' ':'')+( final||interim);
+    autoResize(memo);
+  };
+  rec.onend=()=>{ btn.classList.remove('recording'); btn.textContent='🎤'; btn.title='音声入力'; activeRecognition=null; activeVoiceMeal=null; autoResize(memo); };
+  rec.onerror=(e)=>{ btn.classList.remove('recording'); btn.textContent='🎤'; activeRecognition=null; activeVoiceMeal=null; if(e.error!=='aborted') alert(`音声入力エラー：${e.error}\nマイクの使用を許可しているか確認してください。`); };
+  rec.start();
+}
+
 const MEAL_NAMES_JP = {morning:'朝食', lunch:'昼食', dinner:'夕食'};
 
 function toggleCancel(meal) {
@@ -1280,10 +1408,32 @@ function init() {
 
   const today = new Date();
   const dateSel = document.getElementById('date-sel');
-  for(let i=0;i<31;i++){
-    const d=new Date(today); d.setDate(today.getDate()+i);
-    dateSel.innerHTML+=`<option value="${d.toISOString().slice(0,10)}">${d.getMonth()+1}/${d.getDate()}（${DOW[d.getDay()]}）</option>`;
-  }
+  // 日付セレクターは動的に色つきで生成する関数を定義
+  window.refreshDateSelector = function(){
+    const cur = dateSel.value;
+    dateSel.innerHTML = '<option value="">日付を選択</option>';
+    for(let i=0;i<31;i++){
+      const d=new Date(today); d.setDate(today.getDate()+i);
+      const ds=d.toISOString().slice(0,10);
+      const label=`${d.getMonth()+1}/${d.getDate()}（${DOW[d.getDay()]}）`;
+      const hasOrder = loggedInRoom && orders.some(o=>
+        o.room==loggedInRoom &&
+        (o.person||null)===(loggedInPerson||null) &&
+        o.date===ds
+      );
+      const opt=document.createElement('option');
+      opt.value=ds;
+      opt.textContent = hasOrder ? `✅ ${label}` : label;
+      if(hasOrder){
+        opt.style.background='#2a3a2a';
+        opt.style.color='#7ec8a0';
+        opt.style.fontWeight='700';
+      }
+      dateSel.appendChild(opt);
+    }
+    if(cur) dateSel.value=cur;
+  };
+  window.refreshDateSelector();
   MEALS.forEach(m=>{
     document.getElementById(`skip-${m}`).addEventListener('change',function(){
       document.querySelectorAll(`input[name="${m}"]`).forEach(r=>{
@@ -1357,6 +1507,9 @@ function onRoomOrDateChange() {
       }
     }
     if(ex[`rs_${m}`]) document.getElementById(`rs-${m}`).checked=true;
+    // 備考を復元
+    const memoEl=document.getElementById(`memo-${m}`);
+    if(memoEl){ memoEl.value=ex[`memo_${m}`]||''; autoResize(memoEl); }
   });
   MEALS.forEach(m => syncCancelBtn(m));
   document.getElementById('existing-notice').style.display='block';
@@ -1444,6 +1597,9 @@ function showConfirmModal(date, sel, rs) {
   document.getElementById('modal-rows').innerHTML = MEALS.map(m => {
     const name  = menuDisplayName(m, sel[m]);
     const rsTag = rs[m] ? `<span class="modal-rs">🛎 +¥300</span>` : '';
+    const memoEl= document.getElementById(`memo-${m}`);
+    const memo  = memoEl ? memoEl.value.trim() : '';
+    const memoTag = memo ? `<div style="font-size:10px;color:var(--text-muted);margin-top:4px;padding-left:2px">📝 ${memo}</div>` : '';
 
     if(!name) {
       // なし → 有料キャンセル期間内 かつ 以前はあった場合は赤表示
@@ -1472,94 +1628,107 @@ function showConfirmModal(date, sel, rs) {
 
 function closeConfirmModal() {
   document.getElementById('order-confirm-modal').classList.remove('open');
+  // モーダルをリセット（2人同時モードのタイトル変更を元に戻す）
+  document.querySelector('.modal-title').textContent='📋 オーダー確認';
+  document.querySelector('.modal-btn-ok').textContent='✓ 確定する';
+  _pendingBoth=false;
 }
 
 function confirmAndSubmit() {
   closeConfirmModal();
-  const room = loggedInRoom;
-  const date = _pendingDate;
-  const sel  = _pendingSel;
-  const rs   = _pendingRs;
-  const ex   = _pendingEx;
+  if(_pendingBoth){
+    // 赤・青の両方に同じ内容で保存
+    ['red','blue'].forEach(person=>{
+      _saveOrderForPerson(person, _pendingDate, _pendingSel, _pendingRs);
+    });
+    showToast('✅ 赤・青 2人分のオーダーを送信しました');
+    updateNavBadge();
+    _resetOrderForm();
+    if(typeof window.refreshDateSelector==='function') window.refreshDateSelector();
+    return;
+  }
+  // 通常の1人分送信
+  _saveOrderForPerson(loggedInPerson, _pendingDate, _pendingSel, _pendingRs);
+  showToast(_pendingEx?'✓ オーダーを変更しました':'✓ オーダーを送信しました');
+  updateNavBadge();
+  _resetOrderForm();
+  if(typeof window.refreshDateSelector==='function') window.refreshDateSelector();
+}
 
-  // 有料キャンセル警告
-  const newlyCancelled = MEALS.filter(m => {
-    const nowNull    = sel[m] === null;
-    const wasNotNull = !ex || ex[m] !== null;
-    return nowNull && wasNotNull;
-  });
-  if(newlyCancelled.length > 0){
-    const deadline = new Date(date);
-    deadline.setDate(deadline.getDate() - 2);
-    deadline.setHours(14, 0, 0, 0);
-    const now = new Date();
-    const svcDate = new Date(date);
-    if(now >= deadline && now < svcDate){
-      const names = newlyCancelled.map(m => MEAL_LABELS[m]).join('・');
-      alert(`⚠ ${names}をキャンセルしました。\n\n提供日の2日前の14時以降のキャンセルは、有料キャンセルとなります。`);
+function _saveOrderForPerson(person, date, sel, rs) {
+  const room = loggedInRoom;
+  const ex = orders.find(o=>o.room==room&&o.date===date&&(o.person||null)===(person||null));
+
+  // 有料キャンセル警告（通常送信時のみ表示、2人同時は省略）
+  if(!_pendingBoth){
+    const newlyCancelled=MEALS.filter(m=>sel[m]===null&&(!ex||ex[m]!==null));
+    if(newlyCancelled.length>0){
+      const deadline=new Date(date); deadline.setDate(deadline.getDate()-2); deadline.setHours(14,0,0,0);
+      const now=new Date(); const svcDate=new Date(date);
+      if(now>=deadline&&now<svcDate){
+        const names=newlyCancelled.map(m=>MEAL_LABELS[m]).join('・');
+        alert(`⚠ ${names}をキャンセルしました。\n\n提供日の2日前の14時以降のキャンセルは、有料キャンセルとなります。`);
+      }
     }
   }
 
-  // 変更ログ（変更 or 4日以内の新規追加）
+  // 変更ログ
   const today2=new Date(); today2.setHours(0,0,0,0);
   const svc2=new Date(date); svc2.setHours(0,0,0,0);
   const dl=Math.round((svc2-today2)/86400000);
-
   if(dl>=0&&dl<=4){
     if(ex){
-      // 既存オーダーの変更
       const diffs=[];
       MEALS.forEach(m=>{if(ex[m]!==sel[m]||Boolean(ex[`rs_${m}`])!==rs[m])diffs.push({meal:m,from:ex[m],to:sel[m]});});
       if(diffs.length){
-        changeLog.push({id:Date.now(),room:parseInt(room),date,changedAt:new Date().toISOString(),daysLeft:dl,diffs,type:'change',acked:false});
-        localStorage.setItem('restaurantChangelog',JSON.stringify(changeLog));
+        const clEntry1={id:Date.now()+(person==='blue'?1:0),room:parseInt(room),date,changedAt:new Date().toISOString(),daysLeft:dl,diffs,type:'change',acked:false};
+        changeLog.push(clEntry1);
+        if(typeof window.fbSaveChangelog==='function') window.fbSaveChangelog(clEntry1).catch(e=>console.error('FB cl save:',e));
+        else localStorage.setItem('restaurantChangelog',JSON.stringify(changeLog));
       }
     } else {
-      // 新規オーダー追加
       const diffs=MEALS.filter(m=>sel[m]).map(m=>({meal:m,from:null,to:sel[m]}));
       if(diffs.length){
-        changeLog.push({id:Date.now(),room:parseInt(room),date,changedAt:new Date().toISOString(),daysLeft:dl,diffs,type:'new',acked:false});
-        localStorage.setItem('restaurantChangelog',JSON.stringify(changeLog));
+        const clEntry2={id:Date.now()+(person==='blue'?1:0),room:parseInt(room),date,changedAt:new Date().toISOString(),daysLeft:dl,diffs,type:'new',acked:false};
+        changeLog.push(clEntry2);
+        if(typeof window.fbSaveChangelog==='function') window.fbSaveChangelog(clEntry2).catch(e=>console.error('FB cl save:',e));
+        else localStorage.setItem('restaurantChangelog',JSON.stringify(changeLog));
       }
     }
   }
 
-  // 有料キャンセル判定
-  const now2      = new Date();
-  const deadline2 = new Date(date); deadline2.setDate(deadline2.getDate()-2); deadline2.setHours(14,0,0,0);
-  const svcDate2  = new Date(date);
-  const isPaid    = (now2 >= deadline2 && now2 < svcDate2);
-
-  // 保存（有料キャンセルは 'paid_cancel' で記録）
-  orders=orders.filter(o=>!(o.room==room&&o.date===date&&(o.person||null)===(loggedInPerson||null)));
-  const entry={id:Date.now(),room:parseInt(room),person:loggedInPerson,date,submittedAt:new Date().toISOString()};
+  // 保存
+  orders=orders.filter(o=>!(o.room==room&&o.date===date&&(o.person||null)===(person||null)));
+  const entry={id:Date.now()+(person==='blue'?1:0),room:parseInt(room),person,date,submittedAt:new Date().toISOString()};
   MEALS.forEach(m=>{
-    let val = sel[m];
-    // 有料キャンセル期間内に新たにnullにした場合は paid_cancel で保存
-    if(val===null && isPaid && (!ex || ex[m]!==null)) val = 'paid_cancel';
-    entry[m]=val; entry[`rs_${m}`]=rs[m];
+    entry[m]=sel[m]; entry[`rs_${m}`]=rs[m];
     if(sel[m]==='d'&&(m==='lunch'||m==='dinner')) entry[`ac_${m}`]=acPanelState[m].itemIds.slice();
+    // 備考
+    const memoEl=document.getElementById(`memo-${m}`);
+    entry[`memo_${m}`]=memoEl?memoEl.value.trim():'';
   });
   orders.push(entry);
-  localStorage.setItem('restaurantOrders',JSON.stringify(orders));
+  if(typeof window.fbSaveOrder==='function') window.fbSaveOrder(entry).catch(e=>console.error('FB order save error:',e));
+  else localStorage.setItem('restaurantOrders',JSON.stringify(orders));
+}
 
-  // フォームリセット
+function _resetOrderForm(){
   MEALS.forEach(m=>{
     document.querySelectorAll(`input[name="${m}"]`).forEach(r=>{r.checked=false;r.disabled=false;r.closest('.menu-option').querySelector('label').style.opacity='1';});
     document.getElementById(`skip-${m}`).checked=false;
     document.getElementById(`rs-${m}`).checked=false;
     syncCancelBtn(m);
+    const memoEl=document.getElementById(`memo-${m}`);
+    if(memoEl){ memoEl.value=''; memoEl.style.height='auto'; }
   });
   ['lunch','dinner'].forEach(m=>{
     acPanelState[m].itemIds=[]; acPanelState[m].cat='すべて';
     document.getElementById(`ac-panel-${m}`).classList.remove('open');
-    document.getElementById(`ac-chosen-${m}`).textContent='未選択';
+    document.getElementById(`ac-chosen-${m}`).textContent='0品選択中';
     document.getElementById(`desc-${m}-d`).textContent='アラカルト';
   });
   ['date-sel'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('existing-notice').style.display='none';
-  showToast(ex?'✓ オーダーを変更しました':'✓ オーダーを送信しました');
-  updateNavBadge();
 }
 
 // ===== CALENDAR =====
@@ -1630,7 +1799,8 @@ function renderGuestDetail(){
     const val=o[m]; const rs=o[`rs_${m}`]; if(rs) rsTotal+=300;
     if(val===null) return `<div class="detail-row"><div class="detail-dot" style="background:${MCLR[m]}"></div><div class="detail-meal-name">${MEAL_LABELS[m]}</div><span class="detail-none">なし</span></div>`;
     if(val==='paid_cancel') return `<div class="detail-row"><div class="detail-dot" style="background:${MCLR[m]}"></div><div class="detail-meal-name">${MEAL_LABELS[m]}</div><span style="font-size:12px;color:#e05030;font-weight:700;flex:1">⚠ 有料キャンセル</span></div>`;
-    return `<div class="detail-row"><div class="detail-dot" style="background:${MCLR[m]}"></div><div class="detail-meal-name">${MEAL_LABELS[m]}</div><div class="detail-menu">${menuName(m,val,o)}</div>${rs?'<span class="detail-rs">🛎 +¥300</span>':''}</div>`;
+    const memo=o[`memo_${m}`]?`<div style="width:100%;padding-left:52px;font-size:11px;color:var(--text-muted);margin-top:2px">📝 ${o[`memo_${m}`]}</div>`:'';
+    return `<div class="detail-row" style="flex-wrap:wrap"><div class="detail-dot" style="background:${MCLR[m]}"></div><div class="detail-meal-name">${MEAL_LABELS[m]}</div><div class="detail-menu">${menuName(m,val,o)}</div>${rs?'<span class="detail-rs">🛎 +¥300</span>':''}${memo}</div>`;
   }).join('');
   const personHdr = loggedInPerson ? ` <span style="font-size:11px;font-weight:700;color:${PERSON_COLOR[loggedInPerson]}">${PERSON_LABEL[loggedInPerson]}</span>` : '';
   area.innerHTML=`<div class="guest-detail"><div class="guest-detail-header">${room}号室${personHdr} ／ ${dlabel}</div>${rows}${rsTotal?`<div class="rs-total">ルームサービス合計 ¥${rsTotal}</div>`:''}</div>`;
@@ -1645,7 +1815,9 @@ function updateNavBadge(){
 
 function ackAlert(id){
   const e=changeLog.find(c=>c.id===id); if(!e) return;
-  e.acked=true; localStorage.setItem('restaurantChangelog',JSON.stringify(changeLog));
+  e.acked=true;
+  if(typeof window.fbAckChangelog==='function') window.fbAckChangelog(id).catch(err=>console.error('FB ack:',err));
+  else localStorage.setItem('restaurantChangelog',JSON.stringify(changeLog));
   updateNavBadge();
   const card=document.querySelector(`.alert-card[data-id="${id}"]`);
   if(card){card.classList.add('read');const b=card.querySelector('.btn-ack');if(b){b.textContent='✓ 確認済み';b.classList.add('done');b.disabled=true;}}
@@ -1755,18 +1927,18 @@ function exportCSV(){
   const mealLabel = (v) => v===null?'なし':v==='paid_cancel'?'有料CXL':v==='d'?'D(アラカルト)':v.toUpperCase();
 
   const rows=[['部屋番号','個人','日付',
-    '朝食','朝食アラカルト','朝RS',
-    '昼食','昼食アラカルト','昼RS',
-    '夕食','夕食アラカルト','夕RS',
+    '朝食','朝食アラカルト','朝RS','朝備考',
+    '昼食','昼食アラカルト','昼RS','昼備考',
+    '夕食','夕食アラカルト','夕RS','夕備考',
     '送信日時']];
 
   [...orders].sort((a,b)=>a.date.localeCompare(b.date)||a.room-b.room||(a.person||'').localeCompare(b.person||'')).forEach(o=>{
     const personStr = o.person ? (o.person==='red'?'赤':'青') : '';
     rows.push([
       o.room, personStr, o.date,
-      mealLabel(o.morning), acLabel(o,'morning'), o.rs_morning?'有':'無',
-      mealLabel(o.lunch),   acLabel(o,'lunch'),   o.rs_lunch?'有':'無',
-      mealLabel(o.dinner),  acLabel(o,'dinner'),  o.rs_dinner?'有':'無',
+      mealLabel(o.morning), acLabel(o,'morning'), o.rs_morning?'有':'無', o.memo_morning||'',
+      mealLabel(o.lunch),   acLabel(o,'lunch'),   o.rs_lunch?'有':'無',   o.memo_lunch||'',
+      mealLabel(o.dinner),  acLabel(o,'dinner'),  o.rs_dinner?'有':'無',  o.memo_dinner||'',
       o.submittedAt
     ]);
   });
@@ -1787,6 +1959,7 @@ function exportCSV(){
 function clearAll(){
   if(!confirm('全データを削除します。よろしいですか？'))return;
   orders=[];changeLog=[];
+  if(typeof window.fbResetAll==='function') window.fbResetAll().catch(e=>console.error('FB reset:',e));
   localStorage.setItem('restaurantOrders','[]');
   localStorage.setItem('restaurantChangelog','[]');
   renderAdmin();updateNavBadge();showToast('リセットしました');
@@ -1865,5 +2038,114 @@ init();
   </div>
 </div>
 
+<!-- ===== FIREBASE ===== -->
+<script type="module">
+import { initializeApp }                        from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, setDoc,
+         onSnapshot, deleteDoc, getDocs,
+         writeBatch }                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyA0meO3uMgMH7RC1TIW08ak7Z51j3ctSkI",
+  authDomain:        "ordersystem01-80686.firebaseapp.com",
+  projectId:         "ordersystem01-80686",
+  storageBucket:     "ordersystem01-80686.firebasestorage.app",
+  messagingSenderId: "485326032434",
+  appId:             "1:485326032434:web:29f47f18b2089dbb61f62b",
+  measurementId:     "G-E8VLHYCLHN"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ── ローディング表示 ──
+const loadingEl = document.createElement('div');
+loadingEl.id = 'fb-loading';
+loadingEl.style.cssText = 'position:fixed;inset:0;background:rgba(15,14,12,.85);z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;';
+loadingEl.innerHTML = '<div style="width:36px;height:36px;border:3px solid #3a3530;border-top-color:#c9a96e;border-radius:50%;animation:spin .8s linear infinite"></div><div style="color:#c9a96e;font-family:Noto Sans JP,sans-serif;font-size:13px">データを読み込み中...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
+document.body.appendChild(loadingEl);
+
+// ── オーダーをFirestoreキーに変換 ──
+function orderKey(o){ return `${o.room}_${o.person||'none'}_${o.date}`; }
+
+// ── Orders リアルタイム同期 ──
+onSnapshot(collection(db,'orders'), snap => {
+  window._orders = snap.docs.map(d => d.data());
+  orders = window._orders;                        // グローバル変数を更新
+  if(typeof renderAdmin==='function') renderAdmin();
+  if(typeof renderMyCalendar==='function') renderMyCalendar();
+  if(typeof onRoomOrDateChange==='function' && document.getElementById('date-sel').value) onRoomOrDateChange();
+  if(typeof window.refreshDateSelector==='function') window.refreshDateSelector();
+});
+
+// ── Changelog リアルタイム同期 ──
+onSnapshot(collection(db,'changelog'), snap => {
+  window._changelog = snap.docs.map(d => d.data()).sort((a,b)=>b.id-a.id);
+  changeLog = window._changelog;
+  if(typeof updateNavBadge==='function') updateNavBadge();
+  if(typeof renderAlerts==='function') renderAlerts();
+});
+
+// ── 設定（MENUS・TIMES・Alacarte）同期 ──
+onSnapshot(doc(db,'settings','menus'), snap => {
+  if(snap.exists()){
+    const d = snap.data();
+    if(d.menus){ Object.assign(MENUS, d.menus); }
+    if(d.times){ Object.assign(TIMES, d.times); }
+    if(typeof applyMenusToOrderForm==='function') applyMenusToOrderForm();
+    if(typeof renderMenuEditor==='function' && document.getElementById('admin-panel-menueditor')?.classList.contains('active')) renderMenuEditor();
+  }
+  // ローディング解除（最初のスナップショット取得後）
+  if(loadingEl.parentNode) loadingEl.remove();
+});
+
+onSnapshot(collection(db,'alacarte'), snap => {
+  if(!snap.empty){
+    const items = snap.docs.map(d=>d.data()).sort((a,b)=>a.id-b.id);
+    alacarteItems.splice(0, alacarteItems.length, ...items);
+  }
+  if(loadingEl.parentNode) loadingEl.remove();
+});
+
+// ── Firestoreへの保存関数（グローバルに公開）──
+window.fbSaveOrder = async (entry) => {
+  await setDoc(doc(db,'orders', orderKey(entry)), entry);
+};
+
+window.fbSaveChangelog = async (entry) => {
+  await setDoc(doc(db,'changelog', String(entry.id)), entry);
+};
+
+window.fbAckChangelog = async (id) => {
+  await setDoc(doc(db,'changelog', String(id)), { acked: true }, { merge: true });
+};
+
+window.fbSaveMenus = async () => {
+  await setDoc(doc(db,'settings','menus'), { menus: MENUS, times: TIMES });
+};
+
+window.fbSaveAlacarte = async () => {
+  const batch = writeBatch(db);
+  alacarteItems.forEach(item => {
+    batch.set(doc(db,'alacarte', String(item.id)), item);
+  });
+  await batch.commit();
+};
+
+window.fbResetAll = async () => {
+  // ordersを全削除
+  const oSnap = await getDocs(collection(db,'orders'));
+  const cSnap = await getDocs(collection(db,'changelog'));
+  const batch = writeBatch(db);
+  oSnap.docs.forEach(d => batch.delete(d.ref));
+  cSnap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+};
+
+// 3秒後にローディングが残っていれば強制解除
+setTimeout(()=>{ if(loadingEl.parentNode) loadingEl.remove(); }, 3000);
+
+console.log('✅ Firebase connected:', firebaseConfig.projectId);
+</script>
 </body>
 </html>
